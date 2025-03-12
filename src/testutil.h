@@ -28,13 +28,21 @@
 #include <fstream>
 #include <iomanip>
 
-#define EPSILON 1e-6 // 设定精度误差范围
+#define EPSILON 1e-8 // 设定精度误差范围
 using namespace std;
 
 extern int test_einsum4x3(vector<int> shape1, vector<int> shape2, const char *file_path1,
                    const char *file_path2, string equation, const char *output_path) ;
 extern int test_einsum4x3channellast(vector<int> shape1, vector<int> shape2, const char *file_path1,
                                      const char *file_path2, string equation, const char *output_path);
+extern int test_einsum4x4channellast(vector<int> shape1, vector<int> shape2, const char *file_path1,
+                                     const char *file_path2, string equation, const char *output_path);
+extern int test_einsum4x4(vector<int> shape1, vector<int> shape2, const char *file_path1,
+                          const char *file_path2, string equation, const char *output_path);
+extern int test_einsum3x4channellast(vector<int> shape1, vector<int> shape2, const char *file_path1,
+                                     const char *file_path2, string equation, const char *output_path);
+extern int test_einsum3x4(vector<int> shape1, vector<int> shape2, const char *file_path1,
+                          const char *file_path2, string equation, const char *output_path);
 static struct prng_rand_t g_prng_rand_state;
 
 #define SRAND(seed) prng_srand(seed, &g_prng_rand_state)
@@ -45,6 +53,87 @@ static struct prng_rand_t g_prng_rand_state;
 #define TEST_LAYER_DISABLE_AUTO_INPUT_CASTING (1 << 1)
 #define TEST_LAYER_DISABLE_GPU_TESTING        (1 << 2)
 #define TEST_LAYER_ENABLE_FORCE_INPUT_PACK8   (1 << 3)
+
+static void align_channels(const std::string &file_path,
+                    int D0, int D1, int D2, int D3, int D4, int C,
+                    int align_C)
+{//smh
+    if (align_C != 16 && align_C != 64)
+    {
+        std::cerr << "通道对齐数必须是 16 或 64，当前输入: " << align_C << std::endl;
+        return;
+    }
+
+    std::ifstream infile(file_path);
+    if (!infile.is_open())
+    {
+        std::cerr << "无法打开文件: " << file_path << std::endl;
+        return;
+    }
+
+    // 读取数据
+    std::vector<float> data;
+    float value;
+    while (infile >> value)
+    {
+        data.push_back(value);
+    }
+    infile.close();
+
+    // 计算原始张量大小
+    int original_size = D0 * D1 * D2 * D3 * D4 * C;
+    if (data.size() != original_size)
+    {
+        std::cerr << "数据大小与张量形状不匹配，期望大小: " << original_size
+                  << "，实际大小: " << data.size() << std::endl;
+        return;
+    }
+
+    // 计算对齐后的通道数
+    int aligned_C = (C <= align_C) ? align_C : ((C - 1) / align_C + 1) * align_C;
+
+    // 重新排列数据并进行通道对齐
+    std::vector<float> aligned_data(D0 * D1 * D2 * D3 * D4 * aligned_C, 0.0f);
+
+    for (int d0 = 0; d0 < D0; ++d0)
+    {
+        for (int d1 = 0; d1 < D1; ++d1)
+        {
+            for (int d2 = 0; d2 < D2; ++d2)
+            {
+                for (int d3 = 0; d3 < D3; ++d3)
+                {
+                    for (int d4 = 0; d4 < D4; ++d4)
+                    {
+                        for (int c = 0; c < C; ++c)
+                        {
+                            int old_index = (((((d0 * D1 + d1) * D2 + d2) * D3 + d3) * D4 + d4) * C) + c;
+                            int new_index = (((((d0 * D1 + d1) * D2 + d2) * D3 + d3) * D4 + d4) * aligned_C) + c;
+                            aligned_data[new_index] = data[old_index];
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // 将修改后的数据写回文件
+    std::ofstream outfile(file_path);
+    if (!outfile.is_open())
+    {
+        std::cerr << "无法写入文件: " << file_path << std::endl;
+        return;
+    }
+
+    outfile << std::fixed << std::setprecision(6);
+    for (const float &val : aligned_data)
+    {
+        outfile << val << "\n";
+    }
+    outfile.close();
+
+    std::cout << "通道对齐完成（" << align_C << " 通道对齐），已写回文件: " << file_path << std::endl;
+}
 
 static float *readFile(const char *path, int len)
 {
@@ -61,49 +150,91 @@ static float *readFile(const char *path, int len)
         return dataBuf;
     }
 }
-static float *readFileChannelast(const char *path, int len, int &realc)
+
+static float *readFileChannellast(const char *path, int H, int W, int C, int C_aligned, int C_actual, int &out_len)
 {
     FILE *fp = fopen(path, "r");
-    if (fp == NULL)
+    if (!fp)
     {
         printf("cannot open file\n");
-        return NULL;
+        out_len = 0; // 出错时设置 out_len 为 0
+        return nullptr;
     }
 
-    float *dataBuf = (float *)malloc(len * sizeof(float));
-    if (dataBuf == NULL)
+    // 计算总数据量
+    int total_elements = H * W * C;
+    int block_size = H * W * C_aligned; // 每个块的大小
+
+    // 计算总块数
+    int num_blocks = total_elements / block_size;
+
+    // 计算有效数据的总长度
+    out_len = (num_blocks - 1) * H * W * C_aligned + H * W * C_actual;
+
+    // 分配内存
+    float *dataBuf = (float *)malloc(out_len * sizeof(float));
+    if (!dataBuf)
     {
         printf("memory allocation failed\n");
         fclose(fp);
-        return NULL;
+        out_len = 0; // 出错时设置 out_len 为 0
+        return nullptr;
     }
 
     int index = 0;
-    float value;
-    realc = -1; // 初始化 realc 为 -1，表示未找到 0.000
+    float temp;
 
-    for (int i = 0; i < len; i++)
+    // 读取前 num_blocks - 1 块
+    for (int b = 0; b < num_blocks - 1; b++)
     {
-        if (fscanf(fp, "%f", &value) != 1) // 读取失败
+        for (int i = 0; i < block_size; i++)
         {
-            break;
+            if (fscanf(fp, "%f", &temp) != 1)
+            {
+                printf("Error: Unexpected end of file\n");
+                free(dataBuf);
+                fclose(fp);
+                out_len = 0; // 出错时设置 out_len 为 0
+                return nullptr;
+            }
+            dataBuf[index++] = temp;
         }
+    }
 
-        if (fabs(value - 0.000) < EPSILON && realc == -1) // 记录第一个 0.000 的位置
+    // 读取最后一块，只读取 C_actual 个通道的值
+    for (int w = 0; w < W; w++)
+    {
+        for (int h = 0; h < H; h++) // 每行 h 也要遍历
         {
-            realc = i;
-        }
+            for (int c = 0; c < C_actual; c++) // 只读取 C_actual 个通道的数据
+            {
+                if (fscanf(fp, "%f", &temp) != 1)
+                {
+                    printf("Error: Unexpected end of file\n");
+                    free(dataBuf);
+                    fclose(fp);
+                    out_len = 0; // 出错时设置 out_len 为 0
+                    return nullptr;
+                }
+                dataBuf[index++] = temp;
+            }
 
-        if (fabs(value - 0.0) > EPSILON) // 只存储非 0.0 的值
-        {
-            dataBuf[index++] = value;
+            // 跳过 C_aligned - C_actual 个补零的通道数据
+            for (int c = C_actual; c < C_aligned; c++)
+            {
+                if (fscanf(fp, "%f", &temp) != 1)
+                {
+                    printf("Error: Unexpected end of file\n");
+                    free(dataBuf);
+                    fclose(fp);
+                    out_len = 0; // 出错时设置 out_len 为 0
+                    return nullptr;
+                }
+            }
         }
     }
 
     fclose(fp);
-
-    // 重新分配适合的大小
-    dataBuf = (float *)realloc(dataBuf, index * sizeof(float));
     return dataBuf;
 }
 static int *readFileINT( const char *path, int len)
@@ -261,7 +392,7 @@ static void outputFile_space(const char *path, const vector<float> &output)
 // 写一个随机生成data的函数，在filepath的txt文件中写入data
 static void generate_data(const char *filepath, size_t size)
 {//smh
-    srand(time(NULL));
+    // srand(time(NULL));
     FILE *fp = fopen(filepath, "w");
     if (fp == NULL)
     {

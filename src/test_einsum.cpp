@@ -72,19 +72,27 @@ int test_einsum4x3channellast(vector<int> shape1, vector<int> shape2, const char
 	int w2 = shape2[2], h2 = shape2[1], c2 = shape2[0];
 	int input_size1 = w1 * h1 * c1 * b1;
 	int input_size2 = w2 * h2 * c2;
-// 用一个新的readFIleChannelast替代，返回float*，参数中多加一个realc
-	// float *data1 = readFile(file_path1, input_size1);
+	int align_to=64;
+// 用一个新的readFIleChannelast替代，返回float*，参数中多加一个realc,align_to,c,h,w通过block_size,input_size去计算
+// 只有最后一块需要通过realc来操作，其他的block整个块都是要的
 	int realw1 = 0;
-	int realw2=0;
-	float *data1 = readFileChannelast(file_path1, input_size1,realw1);
-	float *data2 = readFileChannelast(file_path2, input_size2,realw2);
-	// float *data2 = readFile(file_path2, input_size2);
-
-	data[0] = InitMat4D_float(realw1, h1, c1, b1, data1);
+	int realw2=c1;
+	float *data1 = readFile(file_path1, input_size1);
+	int out_len;
+	float *data2 = readFileChannellast(file_path2, c2,h2,w2,align_to,realw2,out_len);
+	// vector<float> vec_data2(data2,data2+out_len);
+	// outputFile_line("input/einsum_4_3_2/data2-debug.txt", vec_data2);
+	data[0] = InitMat4D_float(w1, h1, c1, b1, data1);
 	data[1] = InitMat3D_float(realw2, h2, c2, data2);
 	ret = einsum(res, data, equation);
 	matToFIle4d(output_path, res[0]);
+	// 要给output补零,主要是res[0].w
+	int resw=res[0].w;
+	int resh=res[0].h;
+	int resd=res[0].d;
+	int resc=res[0].c;
 
+	align_channels(output_path,1,1,resc,resd,resh,resw,64);
 	printf("====    test_einsum4x3 end    =======\n\n");
 	return 0;
 }
@@ -106,11 +114,16 @@ int test_einsum3x4(vector<int> shape1, vector<int> shape2, const char *file_path
 	data[0] = InitMat3D_float(w1, h1, c1, data1);
 	data[1] = InitMat4D_float(w2, h2, c2, b2, data2);
 	ret = einsum(res, data, equation);
+	int resw = res[0].w;
+	int resh = res[0].h;
+	int resd = res[0].d;
+	int resc = res[0].c;
 	matToFIle4d(output_path, res[0]);
 
 	printf("====    test_einsum3x4 end    =======\n\n");
 	return 0;
 }
+
 int test_einsum4x4(vector<int> shape1, vector<int> shape2, const char *file_path1,
 				   const char *file_path2, string equation, const char *output_path)
 {
