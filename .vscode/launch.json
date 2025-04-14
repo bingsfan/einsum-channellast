@@ -20,6 +20,13 @@
                 "miDebuggerPath": "lldb-mi",
                 "program": "${workspaceFolder}/output/main"
             },
+            "setupCommands": [
+                {
+                    "description": "为 gdb 启用整齐打印",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
             "windows": {
                 "MIMode": "gdb",
                 "miDebuggerPath": "gdb.exe",

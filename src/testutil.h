@@ -31,18 +31,6 @@
 #define EPSILON 1e-8 // 设定精度误差范围
 using namespace std;
 
-extern int test_einsum4x3(vector<int> shape1, vector<int> shape2, const char *file_path1,
-                   const char *file_path2, string equation, const char *output_path) ;
-extern int test_einsum4x3channellast(vector<int> shape1, vector<int> shape2, const char *file_path1,
-                                     const char *file_path2, string equation, const char *output_path);
-extern int test_einsum4x4channellast(vector<int> shape1, vector<int> shape2, const char *file_path1,
-                                     const char *file_path2, string equation, const char *output_path);
-extern int test_einsum4x4(vector<int> shape1, vector<int> shape2, const char *file_path1,
-                          const char *file_path2, string equation, const char *output_path);
-extern int test_einsum3x4channellast(vector<int> shape1, vector<int> shape2, const char *file_path1,
-                                     const char *file_path2, string equation, const char *output_path);
-extern int test_einsum3x4(vector<int> shape1, vector<int> shape2, const char *file_path1,
-                          const char *file_path2, string equation, const char *output_path);
 static struct prng_rand_t g_prng_rand_state;
 
 #define SRAND(seed) prng_srand(seed, &g_prng_rand_state)
@@ -58,11 +46,11 @@ static void align_channels(const std::string &file_path,
                     int D0, int D1, int D2, int D3, int D4, int C,
                     int align_C)
 {//smh
-    if (align_C != 16 && align_C != 64)
-    {
-        std::cerr << "通道对齐数必须是 16 或 64，当前输入: " << align_C << std::endl;
-        return;
-    }
+    // if (align_C != 16 && align_C != 64)
+    // {
+    //     std::cerr << "通道对齐数必须是 16 或 64，当前输入: " << align_C << std::endl;
+    //     return;
+    // }
 
     std::ifstream infile(file_path);
     if (!infile.is_open())
@@ -605,11 +593,9 @@ static ncnn::Mat InitMat3D_float(int w, int h, int c, float* data)
 {
 	ncnn::Mat m(w, h, c);
 	int size = w * h * c;
-	for (int i = 0; i < size; i++)
-	{
-		m[i] = data[i];
-	}
-
+    for (int i = 0; i < size; i++) {
+        m[i] = data[i];
+    }
 	return m;
 }
 static ncnn::Mat InitMat3D_int(int w, int h, int c,int *data)
