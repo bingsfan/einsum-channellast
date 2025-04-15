@@ -1,10 +1,3 @@
 # 在CPU-OPtest的基础上添加einsum算子对Channelast格式的支持
 
-test_einsum.cpp中新增了test_einsum4x3channellast  
-将输入的真实形状先求出来，即补得0都不要，因为这样可能会影响输出的形状，导致两个输入匹配不上  
-比如3x4-2测试项，因此在读文件的时候新增了testutil.h中的readFileChannelast函数  
-这个感觉有点问题readFileChannelast函数用来找第一个为0的位置来判断实际的张量维度，但是可能正常的数据中就有0的所以感觉有点问题,重写了readFileChannelast，前几块统一都读入，最后一块只读cactual     
-再在testutil.h中加入对齐的函数，因为gather也用到了  
-4x4的测试项不用改，直接用原先的就可以了
-3x4的测试项需要在原先输出的情况加上通道对齐就行了，不过3x4的测试项太大了，需要改小一点  
-然后几个testChannelast的需要传入通道对齐数，在参数中修改
+只完成了4x3-1,4x4-1和4x4-2  

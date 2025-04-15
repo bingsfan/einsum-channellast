@@ -92,13 +92,13 @@ int test_einsum4x3channellast_firstEdition(vector<int> shape1, vector<int> shape
 	int resc = res[0].c;
 
 	align_channels(output_path, 1, 1, resc, resd, resh, resw, align_to);
-	printf("====    test_einsum4x3 end    =======\n\n");
+	// printf("====    test_einsum4x3 end    =======\n\n");
 	return 0;
 }
 int test_einsum4x3channellast(vector<int> shape1, vector<int> shape2, const char *file_path1,
 							  const char *file_path2, string equation, const char *output_path,
 							  int align_to) {	 // 统一先找到真实形状，再补零
-	printf("=====   test_einsum4x3 start   ======\n");
+	// printf("=====   test_einsum4x3 start   ======\n");
 	int ret;
 	std::vector<ncnn::Mat> data(2);
 	std::vector<ncnn::Mat> res_origin;
@@ -131,7 +131,7 @@ int test_einsum4x3channellast(vector<int> shape1, vector<int> shape2, const char
 		res2.push_back(res[0]);
 	}
 	writeAllMats4dToFile(output_path, res2);
-	printf("====    test_einsum4x3 end    =======\n\n");
+	// printf("====    test_einsum4x3 end    =======\n\n");
 	return 0;
 }
 int test_einsum3x4(vector<int> shape1, vector<int> shape2, const char *file_path1,
@@ -253,7 +253,7 @@ int test_einsum4x4channnellast(vector<int> shape1, vector<int> shape2, const cha
 							   const char *output_path, int align_to)
 
 {
-	printf("=====   test_einsum4x4 start   ======\n");
+	// printf("=====   test_einsum4x4 start   ======\n");
 	int ret;
 	std::vector<ncnn::Mat> data(2);
 	std::vector<ncnn::Mat> res_origin;
@@ -284,6 +284,6 @@ int test_einsum4x4channnellast(vector<int> shape1, vector<int> shape2, const cha
 		res2.push_back(res[0]);
 	}
 	writeAllMats4dToFile(output_path, res2);
-	printf("====    test_einsum4x4 end    =======\n\n");
+	// printf("====    test_einsum4x4 end    =======\n\n");
 	return 0;
 }
