@@ -9,6 +9,10 @@
 #include <unordered_set>
 #include <vector>
 using namespace std;
+
+// 测时间用的map
+extern std::map<std::string, double> convert_time_accumulator;
+
 extern int test_einsum4x3(vector<int> shape1, vector<int> shape2, const char *file_path1, const char *file_path2,
                           string equation, const char *output_path);
 extern int test_einsum4x3channellast(vector<int> shape1, vector<int> shape2, const char *file_path1,
@@ -21,6 +25,9 @@ extern int test_einsum3x4(vector<int> shape1, vector<int> shape2, const char *fi
                           string equation, const char *output_path);
 extern int test_einsum4x4channnellast(vector<int> shape1, vector<int> shape2, const char *file_path1,
                                       const char *file_path2, string equation, const char *output_path, int align_to);
+extern int test_einsum_transfer(vector<int> shape1, vector<int> shape2, const char *file_path1,
+								const char *file_path2, string equation,
+								const char *output_path, int align_to, int realc1, int realc2);
 /**
  * @description: 给scatternd三维索引用的，将第一列的数据转移到最后一列去，和input匹配
  * @param {int} *indices
